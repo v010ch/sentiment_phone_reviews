@@ -1,3 +1,5 @@
+''' server part for phone reviwe sentiment analysis'''
+
 import os
 import pickle as pkl
 import re
@@ -5,14 +7,16 @@ from typing import Dict
 
 try:
     import nltk.stem as st
-    #st.WordNetLemmatizer()('done')
-    #st.RSLPStemmer()('done')
-except:
+    # st.WordNetLemmatizer()('done')
+    # st.RSLPStemmer()('done')
+except ImportError:
     pass
 
+# инференс возможен и без трансформеров, если использовать только
+# легковестный logreg.
 try:
     from transformers import pipeline
-except:
+except ImportError:
     pass
 
 
@@ -22,9 +26,8 @@ class ModelClassTemplate():
     """
     def __init__(self, state: Dict, model_name: str) -> None:
         with open(model_path, 'rb') as fd:
-            self.model = pkl.load(df)
+            self.model = pkl.load(fd)
             self.state = state
-
 
 
     def clean_text(self, inp_text: str) -> str:
@@ -35,17 +38,11 @@ class ModelClassTemplate():
         return:
             str - отзыв, очищенный от всего кроме слов
         """
-        #cl_txt = lambda x: re.sub(r"\s+", ' ', 
-        #                          re.sub(r"[\d+]", '',
-        #                                re.sub(r"[^\w\s]", '', x.lower()).strip()
-        #                                )
-        #                     )
         return re.sub(r"\s+", ' ', 
                       re.sub(r"[\d+]", '',
                              re.sub(r"[^\w\s]", '', inp_text.lower()).strip()
                              )
-                     )
-
+                      )
 
 
     def prepare_text(self, inp_text: str) -> str:
@@ -57,38 +54,36 @@ class ModelClassTemplate():
             str - отзыв, очищенный от всего кроме слов
         """
         return self.clean_text(inp_text)
-        
-        
-        
+
+
     def predict_tonality(self, inp_text: str):
         """
         Шасблон для функции определения тональности
         """
         text = self.prepare_text(inp_text)
         pred = self.model.predict(text)
-        
+
         return pred
-    
 
 
-    
+
 class ModelTfIdf(ModelClassTemplate):
     """
     Класс определения тональности через tf-idf
     """
     def __init__(self, state: Dict, model_name: str) -> None:
+        super().__init__()
         with open(os.path.join('./', 'models', model_name+'_model.pkl'), 'rb') as fd:
             self.model = pkl.load(fd)
         with open(os.path.join('./', 'models', model_name+'_token.pkl'), 'rb') as fd:
             self.tokenizer = pkl.load(fd)
         self.state = state
-        
+
         if self.state['stem']:
             self.lemm = st.WordNetLemmatizer()
             self.stem = st.RSLPStemmer()
 
 
-            
     def prepare_text(self, inp_text: str) -> str:
         """
         Очистка текста
@@ -105,9 +100,8 @@ class ModelTfIdf(ModelClassTemplate):
             return preprocessed
         else:
             return self.clean_text(inp_text)
-        
-        
-        
+
+
     def predict_tonality(self, inp_text: str) -> str:
         """
         Получение тональности отзыва
@@ -127,8 +121,8 @@ class ModelTfIdf(ModelClassTemplate):
             return 'negative'
         else:
             return 'positive'
-        
-        
+
+
 
 
 class ModelROBERTA(ModelClassTemplate):
@@ -136,12 +130,11 @@ class ModelROBERTA(ModelClassTemplate):
     Класс для определения тональности для обеих версий (как тяжеловестной так и легковестной) ROBERT
     """
     def __init__(self, state: Dict, model_name: str):
-        #super().__init__(model_path)
-        self.model = pipeline("sentiment-analysis", model = model_name)
+        # super().__init__(model_path)
+        self.model = pipeline("sentiment-analysis", model=model_name)
         self.state = state
 
-        
-        
+
     def predict_tonality(self, inp_text: str) -> str:
         """
         Получение тональности отзыва
@@ -151,7 +144,7 @@ class ModelROBERTA(ModelClassTemplate):
             str - тональность отзыва positive / negative / neutral
         """
         pred = self.model(inp_text)
-        #print(pred)
+
         if self.state['roberta'] == 'base':
             if pred[0]['label'] == 'LABEL_0':
                 return 'negative'

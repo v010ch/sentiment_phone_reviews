@@ -56,7 +56,7 @@
  Затем последовательно выполняются:
  w6_tonality_AVV_collect_reviews.ipynb - выполняется сбор отзывов
  w4_tonality_create_light_model.ipynb  - обучение на собранном датасете легковестной LogReg
-                                         поверх признакуов на tf-idf
+                                         поверх признаков на tf-idf
  w6_tonality_avv_transformer.ipynb - (выполняется на colab) дообучение (transfer learning) модели
                                      'ru-blanchefort-rurewiew' на собранных отзывах на 1 эпохе
  
