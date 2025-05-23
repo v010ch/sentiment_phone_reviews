@@ -1,10 +1,30 @@
-''' tmp '''
+'''server docker part for phone review sentiment'''
 
+import numpy as np
+import os
+import pickle as pkl
 import socket
 import time
 
+import nltk
+from nltk.corpus import stopwords
+import onnxruntime as rt
+
+from prepare_text_class import TextPrepareClass
+
+
 HOST = '172.17.0.2'
 PORT = 9126
+
+MODEL_PATH = os.path.join('.')
+PHONES = r'\b(samsung|galaxy|xiaomi|iphon|redmi|note|honor|huawei|apple|' +\
+          'nokia|meizu|google|самсунг|айфон|mi|lenovo|lg|redme|asus|vivo|' +\
+          'zte|helio|mediatek|oppo|htc|pixel|xperia|fly|realme|zenfone|' +\
+          'alcatel|blade|philips|touch|lumia|oneplus|motorola|inoi|red|neo|' +\
+          'moto|panasonic|band|honnor|bbk|vertex|lafleur|xiomi|редми|хонор|' +\
+          'ноки|хуаве|мейзу|асус|галакси|иной|гэлакси|хонор)(|[a-zа-я]+)\b'
+
+nltk.data.path.append('/usr/src/app/nltk')
 
 
 def recv_data(inp_socket):
@@ -33,7 +53,7 @@ def send_data(inp_socket, inp_data):
     return 0
 
 
-def work(connection) -> int:
+def work(connection, determin_sentiment) -> int:
     '''
     '''
     command = connection.recv(1024)
@@ -56,7 +76,18 @@ def work(connection) -> int:
         # print('load_model')
         model_type = connection.recv(1024).decode('utf-8')
         print(model_type)
-        # load model
+        if model_type == 'tfidf':
+            vect_path = os.path.join(MODEL_PATH, 'tfidf_vektor.pkl')
+            model_path = os.path.join(MODEL_PATH, 'tfidf_model.onnx')
+        elif model_type == 'catbbost':
+            vect_path = os.path.join(MODEL_PATH, 'catboost_vektor.pkl')
+            model_path = os.path.join(MODEL_PATH, 'catboost_model.onnx')
+
+        with open(vect_path, 'rb') as fd:
+            determin_sentiment.set_vectorizer(pkl.load(fd))
+
+        determin_sentiment.set_sess(model_path)
+
         return 0
 
     if command.decode('utf-8') == 'get_sentiment':
@@ -69,10 +100,12 @@ def work(connection) -> int:
         review = connection.recv(1024).decode('utf-8')
         print(review)
         # get model prediction
-        sentiment = 'neutral'
+        review = determin_sentiment.textprepare.clean_all(review)
+        sentiment = determin_sentiment.make_prediction(review)
+        # sentiment = 'neutral'
         connection.send(sentiment.encode('utf-8'))
         return 0
-    
+
     if command.decode('utf-8') == 'get_colored_sentiment':
         # print('get get_colored_sentiment')
         review = connection.recv(1024).decode('utf-8')
@@ -83,9 +116,58 @@ def work(connection) -> int:
         return 0
 
 
+class DetermineSentimentClass:
+    '''
+    '''
+    def __init__(self, inp_textprepare) -> None:
+        self.__vectorizer = None
+        self.__sess = None
+        self.__input_name = None
+        self.__label_name = None
+        self.textprepare = inp_textprepare
+
+    def set_vectorizer(self, inp_vectorizer) -> None:
+        '''
+        Задать внутренний векторайзер
+        '''
+        self.__vectorizer = inp_vectorizer
+
+    def set_sess(self, inp_model_path: str, inp_type: str) -> None:
+        '''
+        Задать внутреннюю модель
+        '''
+        sess = rt.InferenceSession(inp_model_path,
+                                   providers=['CPUExecutionProvider']
+                                   )
+        self.__sess = sess
+
+        if inp_type == 'tfidf':
+            self.__input_name = self.sess.get_inputs()[0].name
+            self.__label_name = self.sess.get_outputs()[1].name
+        else:  # catboost
+            self.__input_name = 'probabilities'
+            self.__label_name = 'features'
+
+    def make_prediction(self, inp_text: str) -> float:
+        '''
+        Определить тональность
+        '''
+        # inp_text = self.textprepare.clean_all(inp_text)
+        inp_text = self.__vectorizer.transform([inp_text]).toarray()
+        probabilities = self.__sess.run(
+                    [self.__input_name],
+                    {self.__label_name: inp_text.astype(np.float32)}
+        )
+        return probabilities
+
+
 if __name__ == "__main__":
 
     print('starting')
+
+    textprepare = TextPrepareClass(PHONES, stopwords.words('russian'))
+    determin_sentiment = DetermineSentimentClass(textprepare)
+
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((HOST, PORT))
     server_socket.listen(5)
@@ -100,7 +182,7 @@ if __name__ == "__main__":
 
         while not exit:
             # client closed. awaiting new connection
-            ret = work(conn)
+            ret = work(conn, determin_sentiment)
             if ret == -1:
                 print('Client close connection')
                 print('Returning to waiting for a new connection')
