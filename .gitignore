@@ -8,6 +8,7 @@ models/*
 docker/models/*
 docker/corpora/*
 docker/stemmers/*
+docker/*test*
 
 # Jupyter Notebook
 .ipynb_checkpoints
@@ -21,7 +22,7 @@ docker/stemmers/*
 .spyproject
 
 
-tst_*
+*tst*
 test_*
 log_*
 
