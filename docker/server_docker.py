@@ -76,17 +76,17 @@ def work(connection, determin_sentiment) -> int:
         # print('load_model')
         model_type = connection.recv(1024).decode('utf-8')
         print(model_type)
-        if model_type == 'tfidf':
-            vect_path = os.path.join(MODEL_PATH, 'tfidf_vektor.pkl')
-            model_path = os.path.join(MODEL_PATH, 'tfidf_model.onnx')
-        elif model_type == 'catbbost':
-            vect_path = os.path.join(MODEL_PATH, 'catboost_vektor.pkl')
+        if model_type == 'logreg':
+            vect_path = os.path.join(MODEL_PATH, 'logreg_vektorizer.pkl')
+            model_path = os.path.join(MODEL_PATH, 'logreg_model.onnx')
+        elif model_type == 'catboost':
+            vect_path = os.path.join(MODEL_PATH, 'catboost_vektorizer.pkl')
             model_path = os.path.join(MODEL_PATH, 'catboost_model.onnx')
 
         with open(vect_path, 'rb') as fd:
             determin_sentiment.set_vectorizer(pkl.load(fd))
 
-        determin_sentiment.set_sess(model_path)
+        determin_sentiment.set_sess(model_path, model_type)
 
         return 0
 
@@ -141,9 +141,9 @@ class DetermineSentimentClass:
                                    )
         self.__sess = sess
 
-        if inp_type == 'tfidf':
-            self.__input_name = self.sess.get_inputs()[0].name
-            self.__label_name = self.sess.get_outputs()[1].name
+        if inp_type == 'logreg':
+            self.__input_name = self.__sess.get_inputs()[0].name
+            self.__label_name = self.__sess.get_outputs()[1].name
         else:  # catboost
             self.__input_name = 'probabilities'
             self.__label_name = 'features'

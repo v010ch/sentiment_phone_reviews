@@ -2,8 +2,8 @@ import os
 import pickle as pkl
 
 import numpy as np
-from skl2onnx import to_onnx
 import onnxruntime as rt
+from skl2onnx import to_onnx
 
 
 MODEL_PATH = os.path.join('.', 'models')
@@ -14,20 +14,20 @@ if __name__ == '__main__':
     # вид входных данных
     review = 'Очень хороший отзыв, вызывающий обоснованные сомнения'
 
-    # tf-idf
-    with open(os.path.join(MODEL_PATH, 'tfidf_lr_model.pkl'), 'rb') as fd:
-        model_tfidf = pkl.load(fd)
-    with open(os.path.join(MODEL_PATH, 'tfidf_lr_vektor.pkl'), 'rb') as fd:
-        vectorizer_tfidf = pkl.load(fd)
+    # logreg
+    with open(os.path.join(MODEL_PATH, 'logreg_model.pkl'), 'rb') as fd:
+        model_logreg = pkl.load(fd)
+    with open(os.path.join(MODEL_PATH, 'logreg_vektorizer.pkl'), 'rb') as fd:
+        vectorizer_logreg = pkl.load(fd)
 
-    inp_data = vectorizer_tfidf.transform([review])
+    inp_data = vectorizer_logreg.transform([review])
     # print(sum(inp_data[:1].toarray()[0]))
-    onx = to_onnx(model_tfidf, inp_data[:1].toarray().astype(np.float32))
-    with open(os.path.join(MODEL_PATH, 'tfidf_model.onnx'), 'wb') as fd:
+    onx = to_onnx(model_logreg, inp_data[:1].toarray().astype(np.float32))
+    with open(os.path.join(MODEL_PATH, 'logreg_model.onnx'), 'wb') as fd:
         fd.write(onx.SerializeToString())
 
     # проверка на работу рантайма
-    sess = rt.InferenceSession(os.path.join(MODEL_PATH, 'tfidf_model.onnx'),
+    sess = rt.InferenceSession(os.path.join(MODEL_PATH, 'logreg_model.onnx'),
                                providers=['CPUExecutionProvider']
                                )
     input_name = sess.get_inputs()[0].name
@@ -40,7 +40,7 @@ if __name__ == '__main__':
     # catboost
     with open(os.path.join(MODEL_PATH, 'catboost_model.pkl'), 'rb') as fd:
         model_cb = pkl.load(fd)
-    with open(os.path.join(MODEL_PATH, 'catboost_vektor.pkl'), 'rb') as fd:
+    with open(os.path.join(MODEL_PATH, 'catboost_vektorizer.pkl'), 'rb') as fd:
         vectorizer_cb = pkl.load(fd)
 
     model_cb.save_model(

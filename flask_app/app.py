@@ -64,7 +64,7 @@ def index_page():
 
 
 @app.route("/review", methods=["POST", "GET"])
-def review_page(text: Optional[str] = '', 
+def review_page(text: Optional[str] = '',
                 prediction_message: Optional[str] = ''
                 ):
     '''
