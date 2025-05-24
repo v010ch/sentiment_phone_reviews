@@ -53,7 +53,7 @@ def send_data(inp_socket, inp_data):
     return 0
 
 
-def work(connection, determin_sentiment) -> int:
+def work(connection, determine_sentiment) -> int:
     '''
     '''
     command = connection.recv(1024)
@@ -63,7 +63,7 @@ def work(connection, determin_sentiment) -> int:
     if command.decode('utf-8') == 'exit':
         return -13
 
-    print('getted command: ', command.decode('utf-8'))
+    print('recived command: ', command.decode('utf-8'))
 
     # rudiment
     if command.decode('utf-8') == 'get_available_models':
@@ -84,9 +84,9 @@ def work(connection, determin_sentiment) -> int:
             model_path = os.path.join(MODEL_PATH, 'catboost_model.onnx')
 
         with open(vect_path, 'rb') as fd:
-            determin_sentiment.set_vectorizer(pkl.load(fd))
+            determine_sentiment.set_vectorizer(pkl.load(fd))
 
-        determin_sentiment.set_sess(model_path, model_type)
+        determine_sentiment.set_sess(model_path, model_type)
 
         return 0
 
@@ -100,10 +100,16 @@ def work(connection, determin_sentiment) -> int:
         review = connection.recv(1024).decode('utf-8')
         print(review)
         # get model prediction
-        review = determin_sentiment.textprepare.clean_all(review)
-        sentiment = determin_sentiment.make_prediction(review)
-        # sentiment = 'neutral'
+        review = determine_sentiment.textprepare.clean_all(review)
+        probb = determine_sentiment.make_prediction(review)
+
+        if probb[0][0][0] > probb[0][0][1]:
+            sentiment = 'negative'
+        else:
+            sentiment = 'positive'
+        print(f'sentiment: {sentiment}')
         connection.send(sentiment.encode('utf-8'))
+
         return 0
 
     if command.decode('utf-8') == 'get_colored_sentiment':
@@ -145,8 +151,8 @@ class DetermineSentimentClass:
             self.__input_name = self.__sess.get_inputs()[0].name
             self.__label_name = self.__sess.get_outputs()[1].name
         else:  # catboost
-            self.__input_name = 'probabilities'
-            self.__label_name = 'features'
+            self.__input_name = 'features'
+            self.__label_name = 'probabilities'
 
     def make_prediction(self, inp_text: str) -> float:
         '''
@@ -155,8 +161,8 @@ class DetermineSentimentClass:
         # inp_text = self.textprepare.clean_all(inp_text)
         inp_text = self.__vectorizer.transform([inp_text]).toarray()
         probabilities = self.__sess.run(
-                    [self.__input_name],
-                    {self.__label_name: inp_text.astype(np.float32)}
+                    [self.__label_name],
+                    {self.__input_name: inp_text.astype(np.float32)}
         )
         return probabilities
 
@@ -166,13 +172,12 @@ if __name__ == "__main__":
     print('starting')
 
     textprepare = TextPrepareClass(PHONES, stopwords.words('russian'))
-    determin_sentiment = DetermineSentimentClass(textprepare)
+    determine_sentiment = DetermineSentimentClass(textprepare)
 
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((HOST, PORT))
     server_socket.listen(5)
 
-    print(type(server_socket))
     print(f'Server started on {HOST}:{PORT}')
 
     exit = False
@@ -182,7 +187,7 @@ if __name__ == "__main__":
 
         while not exit:
             # client closed. awaiting new connection
-            ret = work(conn, determin_sentiment)
+            ret = work(conn, determine_sentiment)
             if ret == -1:
                 print('Client close connection')
                 print('Returning to waiting for a new connection')
