@@ -1,4 +1,4 @@
-'''server docker part for phone review sentiment'''
+'''server docker part для определения тональности обзора на телефоны'''
 
 import numpy as np
 import os
@@ -29,6 +29,11 @@ nltk.data.path.append('/usr/src/app/nltk')
 
 def recv_data(inp_socket):
     '''
+    Получение данных/команды от клиентской части
+    args
+        inp_socket - сокет, связанный с клиентской частью
+    return
+        str - полученные данные/команда
     '''
     inp_socket.settimeout(0)
     package_len = int(inp_socket.recv(5))
@@ -41,8 +46,12 @@ def recv_data(inp_socket):
     return ret_data
 
 
-def send_data(inp_socket, inp_data):
+def send_data(inp_socket, inp_data: str):
     '''
+    Отпрака данных клиентской части
+    args
+        inp_socket - сокет, связанный с клиентской частью
+        inp_data - данные (текстовые) для отправки
     '''
     package_len = str(len(inp_data)).encode()
     inp_socket.send(package_len)
@@ -55,6 +64,12 @@ def send_data(inp_socket, inp_data):
 
 def work(connection, determine_sentiment) -> int:
     '''
+    Основная рабочая функция для взаимодействия с клиентской частью
+    args
+        connection - сокет, связанный с клиентской частью
+        determine_sentiment - класс определения тональности и работы с отзывом
+    return
+         int - код обрыва связи с клиентской частью или на завершения работы
     '''
     command = connection.recv(1024)
     if not command:
@@ -65,7 +80,7 @@ def work(connection, determine_sentiment) -> int:
 
     print('recived command: ', command.decode('utf-8'))
 
-    # rudiment
+    # команда рудимент
     if command.decode('utf-8') == 'get_available_models':
         # print('get_available_models')
         available_models = 'all'
@@ -91,15 +106,15 @@ def work(connection, determine_sentiment) -> int:
         return 0
 
     if command.decode('utf-8') == 'get_sentiment':
-        # often two send in a row work like one send/string (from client)
-        # should devide them with send
-        # it this case unusefull data send
+        # часто 2 отправки подряд объединяются в одну,
+        # что бы разорвать эту последовательность, после получения данной 
+        # команды, отправляю в ответ пакет бесполезных данных
         connection.send('unusefull data'.encode('utf-8'))
 
         # print('get sentiment')
         review = connection.recv(1024).decode('utf-8')
         print(review)
-        # get model prediction
+        # получаю тональность отзыва
         review = determine_sentiment.textprepare.clean_all(review)
         probb = determine_sentiment.make_prediction(review)
 
@@ -124,6 +139,7 @@ def work(connection, determine_sentiment) -> int:
 
 class DetermineSentimentClass:
     '''
+    Класс для инференса работы с отзывами
     '''
     def __init__(self, inp_textprepare) -> None:
         self.__vectorizer = None
@@ -134,13 +150,19 @@ class DetermineSentimentClass:
 
     def set_vectorizer(self, inp_vectorizer) -> None:
         '''
-        Задать внутренний векторайзер
+        Задать векторайзер приватным аттрибутом класса
+        args
+            inp_vectorizer - входной векторайзер
         '''
         self.__vectorizer = inp_vectorizer
 
     def set_sess(self, inp_model_path: str, inp_type: str) -> None:
         '''
-        Задать внутреннюю модель
+        Задать модель приватным аттрибутом класса, используемого для инеренса
+        args
+            inp_model_path: str - путь к модели
+            inp_type: str - тип входной модели
+        return
         '''
         sess = rt.InferenceSession(inp_model_path,
                                    providers=['CPUExecutionProvider']
@@ -157,6 +179,10 @@ class DetermineSentimentClass:
     def make_prediction(self, inp_text: str) -> float:
         '''
         Определить тональность
+        args
+            inp_text: str - текст отзыва
+        return
+             list[dict] - величины отнесения входного текста к классам 0 и 1
         '''
         # inp_text = self.textprepare.clean_all(inp_text)
         inp_text = self.__vectorizer.transform([inp_text]).toarray()
@@ -186,14 +212,15 @@ if __name__ == "__main__":
         print(f'Connect by {addr}')
 
         while not exit:
-            # client closed. awaiting new connection
+            # клиент закрыл/оборвал соединение. возвращаюсь
+            # к ожиданию нового подклюяения
             ret = work(conn, determine_sentiment)
             if ret == -1:
                 print('Client close connection')
                 print('Returning to waiting for a new connection')
                 break
 
-            # command to end execution and turn off docker
+            # получена команда на завершению работы сервера
             if ret == -13:
                 print('exiting')
                 exit = True
