@@ -1,4 +1,4 @@
-'''server docker part для определения тональности обзора на телефоны'''
+'''server docker part для определения тональности отзывов на телефоны'''
 
 import numpy as np
 import os

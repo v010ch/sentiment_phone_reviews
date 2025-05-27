@@ -40,7 +40,7 @@ class TextPrepareClass:
         '''
         args:
             inp_phones: str - перечисление "стопслов" - именований телефонов
-                        для очистки в формате для  regexp.sub
+                        для очистки в формате для regexp.sub
             inp_stopwords: list - стопслова, опционально при отсутствии
                            использует nltk.stopwords.words('russian')
         '''

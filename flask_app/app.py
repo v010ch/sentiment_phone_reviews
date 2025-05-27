@@ -45,8 +45,7 @@ def index_page():
     returns:
         сгенерированная страница, либо пренаправление на страницу review_page
     '''
-    # rudiment
-    # chech which model can we use
+    # рудимент
     print(f'index_page: {request.method}')
     if request.method == 'GET':
         command = 'get_available_models'
@@ -55,7 +54,7 @@ def index_page():
         available_models = get_data()
         print(available_models)
 
-    # tell to server to load the selected model
+    # указать серверу работать с выбранной моделью
     if request.method == "POST":
         print(request.form['model_type'])
         command = 'load_model'
@@ -66,7 +65,8 @@ def index_page():
 
         return redirect(url_for('review_page'))
 
-    # no model choosed. check can we use medium and large models
+    
+    # рудимент
     if available_models == 'all':
         return render_template('index.html',)
     else:
@@ -82,12 +82,12 @@ def review_page(text: Optional[str] = '',
     Страница для ввода и отображения отзывов и танальности, 
     взаимодействиями с пользователями и сервером.
     args:
-        text: str - текст входного обзора, опционально
+        text: str - текст входного отзыва, опционально
         prediction_message: str - предсказанная тональность, опционально
-        colored_text: str - текст входного обзора с подсвеченными важными для
+        colored_text: str - текст входного отзыва с подсвеченными важными для
                       предсказанной тональности словами
     returns:
-        страница взаимодействия с обзорами, пользователями и сервером
+        страница взаимодействия с отзывами, пользователями и сервером
     '''
     print(f'review_page: {request.method}')
     if request.method == "GET":
@@ -107,9 +107,9 @@ def review_page(text: Optional[str] = '',
             command = 'get_sentiment'
             socket_cli.send(command.encode('utf-8'))
 
-            # often two send in a row work like one send
-            # should devide them with recv
-            # getting unusefull data
+            # часто 2 отправки подряд объединяются в одну,
+            # что бы разорвать эту последовательность, после отправки данной 
+            # команды, получаю в ответ пакет бесполезных данных
             _ = get_data()
 
             model = review
@@ -126,7 +126,7 @@ def review_page(text: Optional[str] = '',
         return render_template('input_review.html', text=review,
                                # model_type=model_type,
                                prediction_message=sentiment,
-                               colored_text=ct,
+                               # colored_text=ct,
                                )
 
 
