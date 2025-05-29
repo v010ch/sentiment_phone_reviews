@@ -22,7 +22,7 @@ PHONES = r'\b(samsung|galaxy|xiaomi|iphon|redmi|note|honor|huawei|apple|' +\
           'zte|helio|mediatek|oppo|htc|pixel|xperia|fly|realme|zenfone|' +\
           'alcatel|blade|philips|touch|lumia|oneplus|motorola|inoi|red|neo|' +\
           'moto|panasonic|band|honnor|bbk|vertex|lafleur|xiomi|редми|хонор|' +\
-          'ноки|хуаве|мейзу|асус|галакси|иной|гэлакси|хонор)(|[a-zа-я]+)\b'
+          'ноки|хуаве|мейзу|асус|галакси|иной|гэлакси|хонор)(|[a-zа-я]+)' # \b
 
 nltk.data.path.append('/usr/src/app/nltk')
 
@@ -69,7 +69,7 @@ def work(connection, determine_sentiment) -> int:
         connection - сокет, связанный с клиентской частью
         determine_sentiment - класс определения тональности и работы с отзывом
     return
-         int - код обрыва связи с клиентской частью или на завершения работы
+        int - код обрыва связи с клиентской частью или на завершения работы
     '''
     command = connection.recv(1024)
     if not command:
@@ -112,8 +112,11 @@ def work(connection, determine_sentiment) -> int:
         connection.send('unusefull data'.encode('utf-8'))
 
         # print('get sentiment')
-        review = connection.recv(1024).decode('utf-8')
-        print(review)
+        review_size = connection.recv(1024).decode('utf-8')
+        connection.send('unusefull data'.encode('utf-8'))
+
+        review = connection.recv(int(review_size)).decode('utf-8')
+        print(review_size, review)
         # получаю тональность отзыва
         review = determine_sentiment.textprepare.clean_all(review)
         probb = determine_sentiment.make_prediction(review)
@@ -128,12 +131,33 @@ def work(connection, determine_sentiment) -> int:
         return 0
 
     if command.decode('utf-8') == 'get_colored_sentiment':
-        # print('get get_colored_sentiment')
-        review = connection.recv(1024).decode('utf-8')
-        print(review)
-        # get model prediction
-        sentiment = 'neutral'
+        # часто 2 отправки подряд объединяются в одну,
+        # что бы разорвать эту последовательность, после получения данной 
+        # команды, отправляю в ответ пакет бесполезных данных
+        connection.send('unusefull data'.encode('utf-8'))
+
+        # print('get sentiment')
+        review_size = connection.recv(1024).decode('utf-8')
+        connection.send('unusefull data'.encode('utf-8'))
+
+        review = connection.recv(int(review_size)).decode('utf-8')
+        print(review_size, review)
+        # получаю тональность отзыва
+        review = determine_sentiment.textprepare.clean_all(review)
+        probb = determine_sentiment.make_prediction(review)
+
+        if probb[0][0][0] > probb[0][0][1]:
+            sentiment = 'negative'
+        else:
+            sentiment = 'positive'
+        print(f'sentiment: {sentiment}')
         connection.send(sentiment.encode('utf-8'))
+
+        _ = connection.recv(1024)
+
+        colored_review = 'her_tam_colored'
+        connection.send(colored_review.encode('utf-8'))
+
         return 0
 
 
@@ -182,7 +206,7 @@ class DetermineSentimentClass:
         args
             inp_text: str - текст отзыва
         return
-             list[dict] - величины отнесения входного текста к классам 0 и 1
+            list[dict] - величины отнесения входного текста к классам 0 и 1
         '''
         # inp_text = self.textprepare.clean_all(inp_text)
         inp_text = self.__vectorizer.transform([inp_text]).toarray()

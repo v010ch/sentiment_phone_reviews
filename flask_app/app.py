@@ -38,6 +38,62 @@ def get_data() -> str:
     return data.decode('utf-8')
 
 
+def get_sentiment(inp_review: str) -> str:
+    '''
+    '''
+    command = 'get_sentiment'
+    socket_cli.send(command.encode('utf-8'))
+
+    # часто 2 отправки подряд объединяются в одну,
+    # что бы разорвать эту последовательность, после отправки данной 
+    # команды, получаю в ответ пакет бесполезных данных
+    _ = get_data()
+
+    #socket_cli.send(model.encode('utf-8'))
+    #model = review
+    #socket_cli.send(model.encode('utf-8'))
+
+    review_size = str(len(inp_review))
+    socket_cli.send(review_size.encode('utf-8'))
+    _ = get_data()
+
+    socket_cli.send(inp_review.encode('utf-8'))
+
+    sentiment = get_data()
+
+    return sentiment
+
+
+def get_colored_sentiment(inp_review: str) -> tuple[str, str]:
+    '''
+    '''
+    command = 'get_colored_sentiment'
+    socket_cli.send(command.encode('utf-8'))
+
+    # часто 2 отправки подряд объединяются в одну,
+    # что бы разорвать эту последовательность, после отправки данной 
+    # команды, получаю в ответ пакет бесполезных данных
+    _ = get_data()
+
+    #socket_cli.send(model.encode('utf-8'))
+    #model = review
+    #socket_cli.send(model.encode('utf-8'))
+
+    review_size = str(len(inp_review))
+    socket_cli.send(review_size.encode('utf-8'))
+    _ = get_data()
+
+    socket_cli.send(inp_review.encode('utf-8'))
+
+    sentiment = get_data()
+    socket_cli.send('unusefull_data'.encode('utf-8'))
+    colored_review = get_data()
+
+    print(f'get colored review >{colored_review}<')
+    
+    return sentiment, colored_review
+
+
 @app.route("/", methods=["POST", "GET"])
 def index_page():
     '''
@@ -104,18 +160,9 @@ def review_page(text: Optional[str] = '',
             review = request.form['text']
             print(review)
 
-            command = 'get_sentiment'
-            socket_cli.send(command.encode('utf-8'))
+            #sentiment = get_sentiment(review)
 
-            # часто 2 отправки подряд объединяются в одну,
-            # что бы разорвать эту последовательность, после отправки данной 
-            # команды, получаю в ответ пакет бесполезных данных
-            _ = get_data()
-
-            model = review
-            socket_cli.send(model.encode('utf-8'))
-
-            sentiment = get_data()
+            sentiment, review_colored = get_colored_sentiment(review)
         else:
             print(request.form)
 
@@ -126,7 +173,7 @@ def review_page(text: Optional[str] = '',
         return render_template('input_review.html', text=review,
                                # model_type=model_type,
                                prediction_message=sentiment,
-                               # colored_text=ct,
+                               colored_text=review_colored,
                                )
 
 
