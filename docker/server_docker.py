@@ -22,7 +22,7 @@ PHONES = r'\b(samsung|galaxy|xiaomi|iphon|redmi|note|honor|huawei|apple|' +\
           'zte|helio|mediatek|oppo|htc|pixel|xperia|fly|realme|zenfone|' +\
           'alcatel|blade|philips|touch|lumia|oneplus|motorola|inoi|red|neo|' +\
           'moto|panasonic|band|honnor|bbk|vertex|lafleur|xiomi|редми|хонор|' +\
-          'ноки|хуаве|мейзу|асус|галакси|иной|гэлакси|хонор)(|[a-zа-я]+)' # \b
+          'ноки|хуаве|мейзу|асус|галакси|иной|гэлакси|хонор)(|[a-zа-я]+)'  # \b
 
 nltk.data.path.append('/usr/src/app/nltk')
 
@@ -215,6 +215,126 @@ class DetermineSentimentClass:
                     {self.__input_name: inp_text.astype(np.float32)}
         )
         return probabilities
+
+    def __get_sentence(self, inp_text: str, inp_idxs: list[int]) -> float:
+        '''
+        args
+            inp_text: str - входной текст
+            inp_idxs: list[int] - список индексов слов, которые необходимо 
+                    исключить из входного текста перед получением тональности
+                    !!! важно: индексы в обратном порядке (n+1, n, n-1)
+                    что бы не учитывать появившейся сдвиг в больших
+                    индексах после удаления меньших.
+        return
+            str - выходной текст с подсвеченными словами
+        '''
+        for idx in inp_idxs:
+            del inp_text[idx]
+
+        inp_text = [el for el in inp_text if el != '_']
+        inp_text = self.__vectorizer.transform([' '.join(inp_text)])
+
+        return model.predict_proba(inp_text)[0][1]
+
+    def get_colored_words(self, inp_text: str) -> np.ndarray:  # str:
+        '''
+        Получить исходный текст с подсвеченными словами, оказавшими наибольшее
+        влияние на полученное предсказание. n-gram = (1, 1) by word
+        args
+            inp_text: str - входной текст
+        return
+            str - выходной текст с подсвеченными словами
+        '''
+        # предсказание на всем тексте отзыва, которое будет браться за основу
+        full_text = self.text_prepare.clean_all(inp_text) 
+        full_text = self.__vectorizer.transform([full_text])
+        basis = model.predict_proba(full_text)[0][1]
+        if basis > .5:
+            print('positive')
+            color = 'green'
+            reverse_influence = False
+        else:
+            print('negative')
+            color = 'red'
+            reverse_influence = True
+
+        # подгготовка массива 'влияния' слова
+        text_split = self.text_prepare.clean_all(inp_text, for_coloring=True)\
+                                      .split()
+        # word_infl = np.ndarray((len(text_split), 4), dtype=np.float16)
+        word_infl = np.full((len(text_split), 1), np.nan)
+        words_infl = np.full((len(text_split), 3), np.nan)
+
+        # убираю по слову и получаю результат на всем отзыве без этого слова
+        print(text_split)
+        for idx, el in enumerate(text_split):
+            #print(el, idx)
+            if el == '_':
+                word_infl[idx, 0] == np.nan
+                words_infl[idx, 0] == np.nan
+                words_infl[idx, 1] == np.nan
+                words_infl[idx, 2] == np.nan
+                continue
+
+            # влияние слова на тональность
+            word_infl[idx, 0] = basis - self.__get_sentence(text_split.copy(),
+                                                            [idx])
+
+            # влияние слова и предыдущего слова на тональность
+            if idx > 0 and text_split[idx-1] != '_':
+                pred = self.__get_sentence(text_split.copy(), [idx, idx-1])
+                words_infl[idx, 0] = basis - pred
+            else:
+                words_infl[idx, 0] = np.nan
+
+            # влияние слова и следующего слова на тональность
+            if idx < (len(text_split) - 2) and text_split[idx+1] != '_':
+                pred = self.__get_sentence(text_split.copy(), [idx+1, idx])
+                words_infl[idx, 1] = basis - pred
+            else:
+                words_infl[idx, 1] = np.nan
+
+            # влияние слова, предыдущего и следующего слов на тональность
+            if idx >= 1 and idx < (len(text_split) - 2)\
+               and text_split[idx - 1] != '_'\
+               and text_split[idx + 1] != '_':
+                pred = self.__get_sentence(text_split.copy(),
+                                           [idx+1, idx, idx-1])
+                words_infl[idx, 2] = basis - pred
+            else:
+                words_infl[idx, 2] = np.nan
+
+        words_infl = np.nansum(words_infl, axis=1)
+        for idx in range(len(text_split)):
+            if words_infl[idx] != 0:
+                word_infl[idx] = word_infl[idx]*0.7 + words_infl[idx]*0.3
+
+        #return word_infl, words_infl
+        # добавляю в изначальный текст отзыва html тэги с цветом
+        # на основные слова, повлиявшие больше всего на полученный результат
+        word_w_influence = [el for el in zip(text_split, word_infl,
+                                             range(len(word_infl)))
+                            ]
+        #print(word_w_influence)
+        word_w_influence = sorted(word_w_influence,
+                                  key=lambda x: x[1][0],
+                                  reverse=reverse_influence,
+                                  )
+        important_indexes = set([el[2] for el in word_w_influence[:10]])
+        vals = set([el[1][0] for el in word_w_influence[:10]])
+
+        #print(word_w_influence)
+        print(important_indexes)
+        #print(vals)
+
+        colored_text = ['']*len(inp_text.split())
+        for idx, el in enumerate(inp_text.split()):
+            if idx in important_indexes:
+                colored_text[idx] = f'<span style="color: {color}">{el}</span>'
+            else:
+                colored_text[idx] = el
+
+        return ' '.join(colored_text)
 
 
 if __name__ == "__main__":
