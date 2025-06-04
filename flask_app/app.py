@@ -1,8 +1,9 @@
-''' flask main app for phone review sentiment analysis'''
+'''flask main app для анализа тональности отзывов на телефоны'''
 import socket
 from typing import Optional
 
 from flask import Flask, render_template, request, redirect, url_for
+from markupsafe import Markup
 
 
 HOST = '172.17.0.2'
@@ -17,12 +18,18 @@ socket_cli.connect((HOST, PORT))
 
 def send_data(inp_msg: str):
     '''
+    рудимент. не используется.
+    args:
+         inp_msg - текст для отправки на сервер
     '''
     socket_cli.send(inp_msg.encode('utf-8'))
 
 
 def get_data() -> str:
     '''
+    Получения данных с сервера
+    returns:
+        str - полученные данные
     '''
     data = socket_cli.recv(1024)
     if not data:
@@ -31,12 +38,70 @@ def get_data() -> str:
     return data.decode('utf-8')
 
 
+def get_sentiment(inp_review: str) -> str:
+    '''
+    '''
+    command = 'get_sentiment'
+    socket_cli.send(command.encode('utf-8'))
+
+    # часто 2 отправки подряд объединяются в одну,
+    # что бы разорвать эту последовательность, после отправки данной 
+    # команды, получаю в ответ пакет бесполезных данных
+    _ = get_data()
+
+    #socket_cli.send(model.encode('utf-8'))
+    #model = review
+    #socket_cli.send(model.encode('utf-8'))
+
+    review_size = str(len(inp_review))
+    socket_cli.send(review_size.encode('utf-8'))
+    _ = get_data()
+
+    socket_cli.send(inp_review.encode('utf-8'))
+
+    sentiment = get_data()
+
+    return sentiment
+
+
+def get_colored_sentiment(inp_review: str) -> tuple[str, str]:
+    '''
+    '''
+    command = 'get_colored_sentiment'
+    socket_cli.send(command.encode('utf-8'))
+
+    # часто 2 отправки подряд объединяются в одну,
+    # что бы разорвать эту последовательность, после отправки данной 
+    # команды, получаю в ответ пакет бесполезных данных
+    _ = get_data()
+
+    #socket_cli.send(model.encode('utf-8'))
+    #model = review
+    #socket_cli.send(model.encode('utf-8'))
+
+    review_size = str(len(inp_review))
+    socket_cli.send(review_size.encode('utf-8'))
+    _ = get_data()
+
+    socket_cli.send(inp_review.encode('utf-8'))
+
+    sentiment = get_data()
+    socket_cli.send('unusefull_data'.encode('utf-8'))
+    colored_review = get_data()
+
+    print(f'get colored review >{colored_review}<')
+    
+    return sentiment, colored_review
+
+
 @app.route("/", methods=["POST", "GET"])
 def index_page():
     '''
+    Метод работы с главной страницей
+    returns:
+        сгенерированная страница, либо пренаправление на страницу review_page
     '''
-    # rudiment
-    # chech which model can we use
+    # рудимент
     print(f'index_page: {request.method}')
     if request.method == 'GET':
         command = 'get_available_models'
@@ -45,7 +110,7 @@ def index_page():
         available_models = get_data()
         print(available_models)
 
-    # tell to server to load the selected model
+    # указать серверу работать с выбранной моделью
     if request.method == "POST":
         print(request.form['model_type'])
         command = 'load_model'
@@ -56,7 +121,8 @@ def index_page():
 
         return redirect(url_for('review_page'))
 
-    # no model choosed. check can we use medium and large models
+    
+    # рудимент
     if available_models == 'all':
         return render_template('index.html',)
     else:
@@ -65,9 +131,19 @@ def index_page():
 
 @app.route("/review", methods=["POST", "GET"])
 def review_page(text: Optional[str] = '',
-                prediction_message: Optional[str] = ''
+                prediction_message: Optional[str] = '',
+                colored_text: Optional[str] = '',
                 ):
     '''
+    Страница для ввода и отображения отзывов и танальности, 
+    взаимодействиями с пользователями и сервером.
+    args:
+        text: str - текст входного отзыва, опционально
+        prediction_message: str - предсказанная тональность, опционально
+        colored_text: str - текст входного отзыва с подсвеченными важными для
+                      предсказанной тональности словами
+    returns:
+        страница взаимодействия с отзывами, пользователями и сервером
     '''
     print(f'review_page: {request.method}')
     if request.method == "GET":
@@ -84,24 +160,20 @@ def review_page(text: Optional[str] = '',
             review = request.form['text']
             print(review)
 
-            command = 'get_sentiment'
-            socket_cli.send(command.encode('utf-8'))
+            #sentiment = get_sentiment(review)
 
-            # often two send in a row work like one send
-            # should devide them with recv
-            # getting unusefull data
-            _ = get_data()
-
-            model = review
-            socket_cli.send(model.encode('utf-8'))
-
-            sentiment = get_data()
+            sentiment, review_colored = get_colored_sentiment(review)
         else:
             print(request.form)
 
+        ct = Markup('<span style="color: red">Всем</span> привет! ♥ ● Я хотела' \
+                    'купить этот телефон Xiaomi Mi max 3 только из-за огромного' \
+                    'экрана. Я часто слышу фразу: " Как ты ходишь с таким телефоном?' \
+                    ' <span style="color: red">Удобно</span> ли тебе?')
         return render_template('input_review.html', text=review,
                                # model_type=model_type,
                                prediction_message=sentiment,
+                               colored_text=review_colored,
                                )
 
 
