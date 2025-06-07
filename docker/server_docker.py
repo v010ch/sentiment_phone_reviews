@@ -107,7 +107,7 @@ def work(connection, determine_sentiment) -> int:
 
     if command.decode('utf-8') == 'get_sentiment':
         # часто 2 отправки подряд объединяются в одну,
-        # что бы разорвать эту последовательность, после получения данной 
+        # что бы разорвать эту последовательность, после получения данной
         # команды, отправляю в ответ пакет бесполезных данных
         connection.send('unusefull data'.encode('utf-8'))
 
@@ -132,7 +132,7 @@ def work(connection, determine_sentiment) -> int:
 
     if command.decode('utf-8') == 'get_colored_sentiment':
         # часто 2 отправки подряд объединяются в одну,
-        # что бы разорвать эту последовательность, после получения данной 
+        # что бы разорвать эту последовательность, после получения данной
         # команды, отправляю в ответ пакет бесполезных данных
         connection.send('unusefull data'.encode('utf-8'))
 
@@ -220,7 +220,7 @@ class DetermineSentimentClass:
         '''
         args
             inp_text: str - входной текст
-            inp_idxs: list[int] - список индексов слов, которые необходимо 
+            inp_idxs: list[int] - список индексов слов, которые необходимо
                     исключить из входного текста перед получением тональности
                     !!! важно: индексы в обратном порядке (n+1, n, n-1)
                     что бы не учитывать появившейся сдвиг в больших
@@ -234,7 +234,11 @@ class DetermineSentimentClass:
         inp_text = [el for el in inp_text if el != '_']
         inp_text = self.__vectorizer.transform([' '.join(inp_text)])
 
-        return model.predict_proba(inp_text)[0][1]
+        pred = self.__sess.run(
+                    [self.__label_name],
+                    {self.__input_name: inp_text.astype(np.float32)}
+        )
+        return pred[0][1]
 
     def get_colored_words(self, inp_text: str) -> np.ndarray:  # str:
         '''
@@ -246,9 +250,12 @@ class DetermineSentimentClass:
             str - выходной текст с подсвеченными словами
         '''
         # предсказание на всем тексте отзыва, которое будет браться за основу
-        full_text = self.text_prepare.clean_all(inp_text) 
+        full_text = self.text_prepare.clean_all(inp_text)
         full_text = self.__vectorizer.transform([full_text])
-        basis = model.predict_proba(full_text)[0][1]
+        basis = self.__sess.run(
+                    [self.__label_name],
+                    {self.__input_name: full_text.astype(np.float32)}
+                )[0][1]
         if basis > .5:
             print('positive')
             color = 'green'
@@ -268,7 +275,6 @@ class DetermineSentimentClass:
         # убираю по слову и получаю результат на всем отзыве без этого слова
         print(text_split)
         for idx, el in enumerate(text_split):
-            #print(el, idx)
             if el == '_':
                 word_infl[idx, 0] == np.nan
                 words_infl[idx, 0] == np.nan
@@ -309,23 +315,20 @@ class DetermineSentimentClass:
             if words_infl[idx] != 0:
                 word_infl[idx] = word_infl[idx]*0.7 + words_infl[idx]*0.3
 
-        #return word_infl, words_infl
+        # return word_infl, words_infl
         # добавляю в изначальный текст отзыва html тэги с цветом
         # на основные слова, повлиявшие больше всего на полученный результат
         word_w_influence = [el for el in zip(text_split, word_infl,
                                              range(len(word_infl)))
                             ]
-        #print(word_w_influence)
         word_w_influence = sorted(word_w_influence,
                                   key=lambda x: x[1][0],
                                   reverse=reverse_influence,
                                   )
         important_indexes = set([el[2] for el in word_w_influence[:10]])
-        vals = set([el[1][0] for el in word_w_influence[:10]])
+        # vals = set([el[1][0] for el in word_w_influence[:10]])
 
-        #print(word_w_influence)
         print(important_indexes)
-        #print(vals)
 
         colored_text = ['']*len(inp_text.split())
         for idx, el in enumerate(inp_text.split()):
