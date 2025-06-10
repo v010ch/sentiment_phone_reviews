@@ -90,4 +90,4 @@ hugging face.
 
 Собранные данные, на которых обучались модели, обученные модели,
 python скрипт flask app клиентской части и серверная часть - 
-подготовленный docker образ можно забрать с [] или []
+подготовленный docker образ можно забрать с [я.диск](https://disk.yandex.ru/d/MRdXoDIB1oivGg) или [g.drive](https://drive.google.com/drive/folders/1uA3s-6JFXOP-Brq8V8nfbVINaiKtH8O7?usp=sharing)
