@@ -26,8 +26,17 @@
 
 			<div class="form__group">
 				<label for="name" class="form__label">Ваш отзыв</label>
-				<form action="{{ url_for('index_page') }}" method=post>
-					<dd><textarea class="form__input" type="text" name=text rows=5 cols=40>{{ text }}</textarea>
+				<form action="{{ url_for('review_page') }}" method=post>
+					<dd>
+						 <table valign="top">
+    						<tr>
+								<textarea class="form__input" type="text" name=text rows=10 cols=60>{{ text }}</textarea>
+								<!--<div contenteditable="true">
+									<span style="color: red">Всем</span> приветnnnnnn!
+									{{ colored_text }}
+								</div>-->
+							</tr>
+						</table>
 						<br>
 						<dl>
 							<!--<dd><input type=submit value="Тональность?"> -->

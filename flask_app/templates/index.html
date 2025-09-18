@@ -39,30 +39,30 @@
                 <th scope="col">
 
                 </th>
-
-                <th scope="col"><span style="color:#FFFAFA">Модель</span></th>
-                <th scope="col"><span style="color:#FFFAFA">Занимаемое место на диске</span></th>
+                <th scope="col" width="30"><span></span></th>
+                <th scope="col" width="100"><span style="color:#FFFAFA">Модель</span></th>
+                <th scope="col"><span style="color:#FFFAFA">Занимаемое место</span></th>
                 <th scope="col"><span style="color:#FFFAFA">Потребление памяти</span></th>
-                <th scope="col"><span style="color:#FFFAFA">Время загрузки модели в память<sup>1, 2</sup></span></th>
+                <th scope="col"><span style="color:#FFFAFA">Время загрузки модели<sup>1, 2</sup></span></th>
                 <th scope="col"><span style="color:#FFFAFA">Время определения тональности<sup>1, 3</sup></span></th>
-                <th scope="col"><span style="color:#FFFAFA">Значение ROC-AUC метрики на тестовых данных kagle
-                    inclass</span></th>
+                <th scope="col"><span style="color:#FFFAFA">ROC-AUC на отложенной выборке</span></th>
               </tr>
 
             </thead>
             <tbody>
               <tr scope="row">
                 <th scope="col">
+                  <td>
                   <label class="control control--checkbox">
-                    <input name="model_type" type="radio" value="tf-idf" checked>
+                    <input name="model_type" type="radio" value="logreg" checked>
                     <div class="control__indicator"></div>
                   </label>
+                  </td>
+                  <td>
+                    Logreg
+                  </td>
                 </th>
-
-                <td>
-                  Легковесная
-                </td>
-                <td><span style="color:#00CC00">менее 1 МБ</span></td>
+                <td><span style="color:#00CC00">менее 100 кБ</span></td>
                 <td><span style="color:#00CC00">менее 500 МБ</span></td>
                 <td><span style="color:#00CC00">2.4 мс</span></td>
                 <td><span style="color:#00CC00">4.7 мс</span></td>
@@ -73,12 +73,38 @@
               </tr>
               <tr>
                 <th scope="col">
-                  <label class="control control--checkbox">
-                    <input name="model_type" type="radio" value="base">
-                    <div class="control__indicator"></div>
-                  </label>
+                    <td>
+                      <label class="control control--checkbox">
+                        <input name="model_type" type="radio" value="catboost">
+                        <div class="control__indicator"></div>
+                      </label>
+                    </td>
+                  <td>
+                    Catboost
+                  </td>
                 </th>
-                <td>Средняя</td>
+                <td>менее 10 МБ</td>
+                <td>до 500 MБ</td>
+                <td>менее 100 мс</td>
+                <td>1 с</td>
+                <td>0.86666</td>
+              </tr>
+              <tr class="spacer">
+                <td colspan="100"></td>
+              </tr>
+              </tr>
+              <tr>
+                <th scope="col">
+                  <td>
+                    <label class="control control--checkbox">
+                      <input name="model_type" type="radio" value="base">
+                      <div class="control__indicator"></div>
+                    </label>
+                  </td>
+                  <td>
+                    Средняя
+                  </td>
+                </th>
                 <td>500 МБ</td>
                 <td><span>до 1,9 ГБ</span></td>
                 <td>2 с</td>
@@ -90,12 +116,16 @@
               </tr>
               <tr>
                 <th scope="col">
-                  <label class="control control--checkbox">
-                    <input name="model_type" type="radio" value="large">
-                    <div class="control__indicator"></div>
-                  </label>
+                  <td>
+                    <label class="control control--checkbox">
+                      <input name="model_type" type="radio" value="large">
+                      <div class="control__indicator"></div>
+                    </label>
+                  </td>
+                  <td>
+                    Тяжелая
+                  </td>
                 </th>
-                <td>Тяжелая</td>
                 <td><span style="color:#CC0000">1.43 ГБ</span></td>
                 <td><span style="color:#CC0000">до 3,2 ГБ</span></td>
                 <td><span style="color:#CC0000">5.3 с</span></td>
